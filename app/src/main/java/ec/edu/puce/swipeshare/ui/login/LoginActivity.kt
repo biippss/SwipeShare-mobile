@@ -1,5 +1,6 @@
 package ec.edu.puce.swipeshare.ui.login
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -13,6 +14,7 @@ import ec.edu.puce.swipeshare.viewmodels.AuthViewModel
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
+import ec.edu.puce.swipeshare.ui.profile.ProfileActivity
 
 class LoginActivity : AppCompatActivity() {
 
@@ -48,7 +50,11 @@ class LoginActivity : AppCompatActivity() {
         viewModel.loginResult.observe(this) { error ->
             if (error == null) {
                 Toast.makeText(this, "Login Exitoso!", Toast.LENGTH_SHORT).show()
-                // Aquí deberías navegar a la siguiente Activity
+
+                // Redireccionar a ProfileActivity
+                val intent = Intent(this, ProfileActivity::class.java)
+                startActivity(intent)
+                finish() // Cierra la pantalla de Login para que no regrese al presionar "Atrás"
             } else {
                 Toast.makeText(this, error, Toast.LENGTH_LONG).show()
             }
