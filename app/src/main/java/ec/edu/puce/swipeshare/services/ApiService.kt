@@ -26,4 +26,11 @@ interface ApiService {
 
     @GET("api/users/{id}/public")
     suspend fun getPublicProfile(@Path("id") userId: String): Response<UserProfileResponse>
+    // --- Endpoints para HU-05 (Feed y Swiping) ---
+
+    @GET("api/items/feed")
+    suspend fun getFeed(): Response<List<ItemResponse>>
+
+    @POST("api/swipes")
+    suspend fun sendSwipe(@Body request: SwipeRequest): Response<SwipeResponse>
 }
