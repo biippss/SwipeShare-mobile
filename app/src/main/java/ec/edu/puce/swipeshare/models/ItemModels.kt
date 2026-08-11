@@ -21,3 +21,9 @@ data class SwipeResponse(
     val isMatch: Boolean,
     val matchId: String?
 )
+data class CreateItemRequest(
+    val title: String,
+    val description: String,
+    val category: String,
+    val imageUrl: String? = null
+)
