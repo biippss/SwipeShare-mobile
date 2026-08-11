@@ -33,4 +33,7 @@ interface ApiService {
 
     @POST("api/swipes")
     suspend fun sendSwipe(@Body request: SwipeRequest): Response<SwipeResponse>
+
+    @POST("api/items")
+    suspend fun createItem(@Body request: CreateItemRequest): Response<ItemResponse>
 }

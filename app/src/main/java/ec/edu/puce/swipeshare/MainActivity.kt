@@ -32,6 +32,10 @@ class MainActivity : ComponentActivity() {
             override fun <T : ViewModel> create(modelClass: Class<T>): T = FeedViewModel(apiService) as T
         })[FeedViewModel::class.java]
 
+        val createItemViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = CreateItemViewModel(apiService) as T
+        })[CreateItemViewModel::class.java]
+
         setContent {
             MaterialTheme {
                 var currentScreen by remember { mutableStateOf("LOGIN") }
