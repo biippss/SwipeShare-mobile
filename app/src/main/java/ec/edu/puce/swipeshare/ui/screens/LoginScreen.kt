@@ -1,6 +1,8 @@
 package ec.edu.puce.swipeshare.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -17,12 +19,18 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var hasSubmitted by remember { mutableStateOf(false) }
 
     val isLoading by viewModel.isLoading.observeAsState(false)
     val loginResult by viewModel.loginResult.observeAsState()
+    val globalStats by viewModel.globalStats.observeAsState()
 
-    LaunchedEffect(loginResult) {
-        if (loginResult == null && viewModel.loginResult.value != null) {
+    LaunchedEffect(Unit) {
+        viewModel.loadGlobalStats()
+    }
+
+    LaunchedEffect(loginResult, isLoading) {
+        if (hasSubmitted && !isLoading && loginResult == null) {
             onLoginSuccess()
         }
     }
@@ -30,6 +38,7 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // Permite scroll si la pantalla es corta
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -56,7 +65,10 @@ fun LoginScreen(
         )
 
         Button(
-            onClick = { viewModel.login(email, password) },
+            onClick = {
+                hasSubmitted = true
+                viewModel.login(email, password)
+            },
             enabled = !isLoading,
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
@@ -73,6 +85,70 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 16.dp)
             )
+        }
+
+        // Tarjeta de estadísticas
+        globalStats?.let { stats ->
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 28.dp),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Impacto de la Comunidad",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "${stats.totalMatches ?: 0}",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Matches Concretados",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        VerticalDivider(
+                            modifier = Modifier.height(36.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "${stats.activeItems ?: 0}",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Text(
+                                text = "Ítems Activos",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

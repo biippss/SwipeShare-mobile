@@ -33,11 +33,18 @@ class ProfileViewModel(private val apiService: ApiService) : ViewModel() {
         }
     }
 
-    fun updateProfile(name: String, bio: String?, phone: String?) {
+    // CORREGIDO: Agregamos el parámetro 'email: String'
+    fun updateProfile(name: String, email: String, bio: String?, phone: String?) {
         isLoading.value = true
         viewModelScope.launch {
             try {
-                val request = UpdateProfileRequest(name, bio, phone)
+                // Pasamos el email al request para cumplir con el contrato del backend
+                val request = UpdateProfileRequest(
+                    name = name,
+                    email = email,
+                    bio = bio,
+                    phone = phone
+                )
                 val response = apiService.updateProfile(request)
                 if (response.isSuccessful && response.body() != null) {
                     userProfile.value = response.body()
