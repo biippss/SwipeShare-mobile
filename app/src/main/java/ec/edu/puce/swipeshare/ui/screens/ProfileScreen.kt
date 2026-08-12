@@ -12,7 +12,8 @@ import ec.edu.puce.swipeshare.viewmodels.ProfileViewModel
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel,
-    onNavigateToFeed: () -> Unit
+    onNavigateToFeed: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val profile by viewModel.userProfile.observeAsState()
     val isLoading by viewModel.isLoading.observeAsState(false)
@@ -34,7 +35,8 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text("Mi Perfil", style = MaterialTheme.typography.headlineMedium)
-                Text("Karma: ${profile?.karma ?: 0}", color = MaterialTheme.colorScheme.primary)
+
+                Text("Karma: ${profile?.karmaBalance ?: 0}", color = MaterialTheme.colorScheme.primary)
 
                 OutlinedTextField(
                     value = profile?.email ?: "",
@@ -66,7 +68,10 @@ fun ProfileScreen(
                 )
 
                 Button(
-                    onClick = { viewModel.updateProfile(name, bio, phone) },
+                    onClick = {
+                        val currentEmail = profile?.email ?: ""
+                        viewModel.updateProfile(name = name, email = currentEmail, bio = bio, phone = phone)
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Guardar Cambios")
@@ -77,6 +82,15 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Ir al Feed de Productos")
+                }
+
+                // BOTÓN CERRAR SESIÓN
+                Button(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    Text("Cerrar Sesión")
                 }
             }
         }

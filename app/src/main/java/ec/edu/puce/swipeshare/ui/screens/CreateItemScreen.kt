@@ -49,7 +49,7 @@ fun CreateItemScreen(
         OutlinedTextField(
             value = category,
             onValueChange = { category = it },
-            label = { Text("Categoría (ej. Ropa, Libros, Tecno) *") },
+            label = { Text("Categoría (ej. Libros, Deporte, Accesorios) *") },
             modifier = Modifier.fillMaxWidth()
         )
 

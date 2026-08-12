@@ -13,6 +13,7 @@ data class AuthResponse(
 
 // DTO para las estadísticas globales (totalItems, totalMatches)
 data class StatsResponse(
-    val totalItems: Long,
-    val totalMatches: Long
+    val totalUsers: Long? = 0,
+    val activeItems: Long? = 0,
+    val totalMatches: Long? = 0
 )
