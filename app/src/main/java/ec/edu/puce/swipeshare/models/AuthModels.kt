@@ -1,5 +1,7 @@
 package ec.edu.puce.swipeshare.models
 
+import com.google.gson.annotations.SerializedName
+
 // DTO para la solicitud de inicio de sesión
 data class LoginRequest(
     val email: String,
@@ -13,7 +15,9 @@ data class AuthResponse(
 
 // DTO para las estadísticas globales (totalItems, totalMatches)
 data class StatsResponse(
-    val totalUsers: Long? = 0,
-    val activeItems: Long? = 0,
+    @SerializedName("totalItems")
+    val totalItems: Long? = 0,
+
+    @SerializedName("totalMatches")
     val totalMatches: Long? = 0
 )

@@ -1,13 +1,21 @@
 package ec.edu.puce.swipeshare
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import ec.edu.puce.swipeshare.services.RetrofitClient
@@ -47,26 +55,63 @@ class MainActivity : ComponentActivity() {
             override fun <T : ViewModel> create(modelClass: Class<T>): T = MatchesViewModel(apiService) as T
         })[MatchesViewModel::class.java]
 
+        val reviewViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = ReviewViewModel(apiService) as T
+        })[ReviewViewModel::class.java]
+
         setContent {
             MaterialTheme {
-                // Controla la pantalla actual en la app
                 var currentScreen by remember { mutableStateOf("LOGIN") }
+                val context = LocalContext.current
+                val reviewToast by reviewViewModel.toastMessage.observeAsState()
+
+                LaunchedEffect(reviewToast) {
+                    reviewToast?.let {
+                        Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                        reviewViewModel.toastMessage.value = null
+                    }
+                }
 
                 Scaffold(
                     bottomBar = {
-                        // Solo muestra la barra inferior si no está en la pantalla de Login
                         if (currentScreen != "LOGIN") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.SpaceAround
-                            ) {
-                                TextButton(onClick = { currentScreen = "PROFILE" }) { Text("Perfil") }
-                                TextButton(onClick = { currentScreen = "FEED" }) { Text("Feed") }
-                                TextButton(onClick = { currentScreen = "CREATE_ITEM" }) { Text("Publicar") }
-                                TextButton(onClick = { currentScreen = "MY_PRODUCTS" }) { Text("Mis Items") }
-                                TextButton(onClick = { currentScreen = "MATCHES" }) { Text("Matches") }
+                            NavigationBar {
+                                NavigationBarItem(
+                                    selected = (currentScreen == "PROFILE"),
+                                    onClick = {
+                                        profileViewModel.loadMyProfile()
+                                        currentScreen = "PROFILE"
+                                    },
+                                    icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
+                                    label = { Text("Perfil") }
+                                )
+                                NavigationBarItem(
+                                    selected = (currentScreen == "FEED"),
+                                    onClick = { currentScreen = "FEED" },
+                                    icon = { Icon(Icons.Default.Home, contentDescription = "Feed") },
+                                    label = { Text("Feed") }
+                                )
+                                NavigationBarItem(
+                                    selected = (currentScreen == "CREATE_ITEM"),
+                                    onClick = { currentScreen = "CREATE_ITEM" },
+                                    icon = { Icon(Icons.Default.AddCircle, contentDescription = "Publicar") },
+                                    label = { Text("Publicar") }
+                                )
+                                NavigationBarItem(
+                                    selected = (currentScreen == "MY_PRODUCTS"),
+                                    onClick = { currentScreen = "MY_PRODUCTS" },
+                                    icon = { Icon(Icons.Default.List, contentDescription = "Mis Items") },
+                                    label = { Text("Mis Items") }
+                                )
+                                NavigationBarItem(
+                                    selected = (currentScreen == "MATCHES"),
+                                    onClick = {
+                                        matchesViewModel.loadMyMatches()
+                                        currentScreen = "MATCHES"
+                                    },
+                                    icon = { Icon(Icons.Default.Favorite, contentDescription = "Matches") },
+                                    label = { Text("Matches") }
+                                )
                             }
                         }
                     }
@@ -82,9 +127,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel = profileViewModel,
                                 onNavigateToFeed = { currentScreen = "FEED" },
                                 onLogout = {
-                                    // 1. Borra el token guardado localmente
                                     tokenManager.clearToken()
-                                    // 2. Redirige inmediatamente a la pantalla de Login
                                     currentScreen = "LOGIN"
                                 }
                             )
@@ -93,13 +136,20 @@ class MainActivity : ComponentActivity() {
                             )
                             "CREATE_ITEM" -> CreateItemScreen(
                                 viewModel = createItemViewModel,
-                                onSuccess = { currentScreen = "MY_PRODUCTS" }
+                                onSuccess = {
+                                    profileViewModel.loadMyProfile()
+                                    currentScreen = "MY_PRODUCTS"
+                                }
                             )
                             "MY_PRODUCTS" -> MyProductsScreen(
                                 viewModel = myProductsViewModel
                             )
                             "MATCHES" -> MatchesScreen(
-                                viewModel = matchesViewModel
+                                viewModel = matchesViewModel,
+                                onSendReview = { targetUserId, rating, comment ->
+                                    reviewViewModel.sendReview(targetUserId, rating, comment)
+                                    matchesViewModel.markUserAsReviewed(targetUserId)
+                                }
                             )
                         }
                     }

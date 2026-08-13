@@ -1,28 +1,51 @@
 package ec.edu.puce.swipeshare.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import ec.edu.puce.swipeshare.viewmodels.MatchUIItem
 import ec.edu.puce.swipeshare.viewmodels.MatchesViewModel
 
 @Composable
-fun MatchesScreen(viewModel: MatchesViewModel) {
+fun MatchesScreen(
+    viewModel: MatchesViewModel,
+    onSendReview: (targetUserId: String, rating: Int, comment: String?) -> Unit
+) {
     val matchesList by viewModel.matchesList.observeAsState(emptyList())
     val isLoading by viewModel.isLoading.observeAsState(false)
     val errorMessage by viewModel.errorMessage.observeAsState()
+
+    var selectedMatchForReview by remember { mutableStateOf<MatchUIItem?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadMyMatches()
     }
 
     Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+
+        // DIÁLOGO DE RESEÑA / CALIFICACIÓN
+        selectedMatchForReview?.let { match ->
+            ReviewDialog(
+                counterpartName = match.counterpartName,
+                onDismiss = { selectedMatchForReview = null },
+                onSubmit = { rating, comment ->
+                    onSendReview(match.counterpartId, rating, comment)
+                    selectedMatchForReview = null
+                }
+            )
+        }
+
         if (isLoading) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         } else if (matchesList.isEmpty()) {
@@ -47,7 +70,8 @@ fun MatchesScreen(viewModel: MatchesViewModel) {
                         MatchCardItem(
                             match = match,
                             onAccept = { viewModel.updateMatchStatus(match.matchId, "APPROVED") },
-                            onReject = { viewModel.updateMatchStatus(match.matchId, "REJECTED") }
+                            onReject = { viewModel.updateMatchStatus(match.matchId, "REJECTED") },
+                            onReviewClick = { selectedMatchForReview = match }
                         )
                     }
                 }
@@ -68,7 +92,8 @@ fun MatchesScreen(viewModel: MatchesViewModel) {
 fun MatchCardItem(
     match: MatchUIItem,
     onAccept: () -> Unit,
-    onReject: () -> Unit
+    onReject: () -> Unit,
+    onReviewClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -104,8 +129,27 @@ fun MatchCardItem(
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Muestra un solo botón según el estado de la reseña
+                if (match.hasBeenReviewed) {
+                    OutlinedButton(
+                        onClick = { },
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Reseña Enviada")
+                    }
+                } else {
+                    Button(
+                        onClick = onReviewClick,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Calificar Usuario")
+                    }
+                }
             } else {
-                // 2. Solo si el usuario es el RECEPTOR (isIncoming == true) mostramos los botones
                 if (match.isIncoming) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -123,7 +167,6 @@ fun MatchCardItem(
                         }
                     }
                 } else {
-                    // Si el usuario fue quien ENVIÓ el match, solo ve el estado de espera
                     Text(
                         text = "Esperando respuesta de ${match.counterpartName}...",
                         style = MaterialTheme.typography.bodySmall,
@@ -134,4 +177,58 @@ fun MatchCardItem(
             }
         }
     }
+}
+
+@Composable
+fun ReviewDialog(
+    counterpartName: String,
+    onDismiss: () -> Unit,
+    onSubmit: (rating: Int, comment: String?) -> Unit
+) {
+    var rating by remember { mutableStateOf(5) }
+    var comment by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Calificar a $counterpartName") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("¿Cómo fue tu experiencia de intercambio?")
+
+                Row(horizontalArrangement = Arrangement.Center) {
+                    (1..5).forEach { star ->
+                        Icon(
+                            imageVector = if (star <= rating) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = "Estrella $star",
+                            tint = if (star <= rating) Color(0xFFFFC107) else Color.Gray,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clickable { rating = star }
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    label = { Text("Comentario (Opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSubmit(rating, comment.ifBlank { null }) }) {
+                Text("Enviar Reseña")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
