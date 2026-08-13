@@ -64,6 +64,7 @@ dependencies {
     // Integración de ViewModel y LiveData con Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("androidx.compose.runtime:runtime-livedata")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Herramientas de desarrollo de Compose
     debugImplementation("androidx.compose.ui:ui-tooling")

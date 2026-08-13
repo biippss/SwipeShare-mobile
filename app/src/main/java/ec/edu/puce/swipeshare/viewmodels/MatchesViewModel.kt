@@ -10,11 +10,13 @@ import kotlinx.coroutines.launch
 data class MatchUIItem(
     val matchId: Long,
     val status: String,
+    val counterpartId: String,
     val counterpartName: String,
     val counterpartPhone: String?,
     val offeredItemTitle: String,
     val requestedItemTitle: String,
-    val isIncoming: Boolean
+    val isIncoming: Boolean,
+    val hasBeenReviewed: Boolean = false
 )
 
 class MatchesViewModel(private val apiService: ApiService) : ViewModel() {
@@ -23,6 +25,9 @@ class MatchesViewModel(private val apiService: ApiService) : ViewModel() {
     val isLoading = MutableLiveData(false)
     val errorMessage = MutableLiveData<String?>()
 
+    // Usamos el ID del Match para aislar las tarjetas y no afectar otras del mismo usuario
+    private val localReviewedMatchIds = mutableSetOf<Long>()
+
     fun loadMyMatches() {
         isLoading.value = true
         errorMessage.value = null
@@ -30,7 +35,7 @@ class MatchesViewModel(private val apiService: ApiService) : ViewModel() {
         viewModelScope.launch {
             try {
                 val profileRes = apiService.getMyProfile()
-                val myCognitoId = profileRes.body()?.cognitoId ?: ""
+                val myCognitoId = profileRes.body()?.cognitoId?.trim().orEmpty()
 
                 val response = apiService.getMyMatches()
                 if (response.isSuccessful && response.body() != null) {
@@ -38,39 +43,46 @@ class MatchesViewModel(private val apiService: ApiService) : ViewModel() {
                     val enrichedList = mutableListOf<MatchUIItem>()
 
                     for (match in rawMatches) {
-                        val isIncoming = (match.user2Id == myCognitoId)
-                        val counterpartId = if (match.user1Id == myCognitoId) match.user2Id else match.user1Id
+                        val isIncoming = match.user2Id.equals(myCognitoId, ignoreCase = true)
+                        val counterpartId = if (match.user1Id.equals(myCognitoId, ignoreCase = true)) {
+                            match.user2Id.trim()
+                        } else {
+                            match.user1Id.trim()
+                        }
 
-                        val userRes = apiService.getUserProfile(counterpartId)
-                        val counterpartName = userRes.body()?.name ?: "Usuario SwipeShare"
-                        val counterpartPhone = userRes.body()?.phone
+                        var counterpartName = "Usuario SwipeShare"
+                        var counterpartPhone: String? = null
+
+                        if (counterpartId.isNotBlank()) {
+                            try {
+                                val userRes = apiService.getUserProfile(counterpartId)
+                                if (userRes.isSuccessful && userRes.body() != null) {
+                                    counterpartName = userRes.body()?.name ?: counterpartName
+                                    counterpartPhone = userRes.body()?.phone
+                                }
+                            } catch (_: Exception) { }
+                        }
 
                         var user1ItemTitle = "Producto"
                         var user2ItemTitle = "Tu Producto"
 
-                        // Cargar título del producto de User 1 (offeredItemId)
                         match.offeredItemId?.let { id ->
-                            val itemRes = apiService.getItemById(id)
-                            if (itemRes.isSuccessful) user1ItemTitle = itemRes.body()?.title ?: user1ItemTitle
+                            try {
+                                val itemRes = apiService.getItemById(id)
+                                if (itemRes.isSuccessful) user1ItemTitle = itemRes.body()?.title ?: user1ItemTitle
+                            } catch (_: Exception) { }
                         }
 
-                        // Cargar título del producto de User 2 (requestedItemId)
-                        val reqItemRes = apiService.getItemById(match.requestedItemId)
-                        if (reqItemRes.isSuccessful) user2ItemTitle = reqItemRes.body()?.title ?: user2ItemTitle
+                        try {
+                            val reqItemRes = apiService.getItemById(match.requestedItemId)
+                            if (reqItemRes.isSuccessful) user2ItemTitle = reqItemRes.body()?.title ?: user2ItemTitle
+                        } catch (_: Exception) { }
 
-                        // INVERSIÓN DINÁMICA DE TÍTULOS SEGÚN EL USUARIO AUTENTICADO:
-                        val offeredTitle: String
-                        val requestedTitle: String
+                        val offeredTitle = if (isIncoming) user1ItemTitle else user2ItemTitle
+                        val requestedTitle = if (isIncoming) user2ItemTitle else user1ItemTitle
 
-                        if (isIncoming) {
-                            // Si yo soy User 2: Me ofrecen el ítem de User 1 a cambio de Mi ítem (User 2)
-                            offeredTitle = user1ItemTitle
-                            requestedTitle = user2ItemTitle
-                        } else {
-                            // Si yo soy User 1: Me ofrecen el ítem de User 2 a cambio de Mi ítem (User 1)
-                            offeredTitle = user2ItemTitle
-                            requestedTitle = user1ItemTitle
-                        }
+                        // Validamos SOLO con la sesión actual para que siempre inicie en "Calificar Usuario"
+                        val hasBeenReviewed = localReviewedMatchIds.contains(match.id)
 
                         enrichedList.add(
                             MatchUIItem(
@@ -80,7 +92,9 @@ class MatchesViewModel(private val apiService: ApiService) : ViewModel() {
                                 counterpartPhone = counterpartPhone,
                                 offeredItemTitle = offeredTitle,
                                 requestedItemTitle = requestedTitle,
-                                isIncoming = isIncoming
+                                isIncoming = isIncoming,
+                                counterpartId = counterpartId,
+                                hasBeenReviewed = hasBeenReviewed
                             )
                         )
                     }
@@ -92,6 +106,40 @@ class MatchesViewModel(private val apiService: ApiService) : ViewModel() {
                 errorMessage.value = "Error de conexión: ${e.message}"
             } finally {
                 isLoading.value = false
+            }
+        }
+    }
+
+    // Funciones de actualización de UI compatibles con cualquier pantalla que tengas
+    fun markMatchAsReviewed(matchId: Long) {
+        localReviewedMatchIds.add(matchId)
+        val currentList = matchesList.value ?: return
+        matchesList.value = currentList.map { match ->
+            if (match.matchId == matchId) {
+                match.copy(hasBeenReviewed = true)
+            } else {
+                match
+            }
+        }
+    }
+
+    // Esta es la función restaurada que usa MainActivity.
+    // La magia es que ahora busca solo la PRIMERA tarjeta no calificada y la bloquea.
+    fun markUserAsReviewed(counterpartId: String) {
+        val currentList = matchesList.value ?: return
+
+        val matchToUpdate = currentList.firstOrNull {
+            it.counterpartId == counterpartId && !it.hasBeenReviewed
+        }
+
+        if (matchToUpdate != null) {
+            localReviewedMatchIds.add(matchToUpdate.matchId)
+            matchesList.value = currentList.map { match ->
+                if (match.matchId == matchToUpdate.matchId) {
+                    match.copy(hasBeenReviewed = true)
+                } else {
+                    match
+                }
             }
         }
     }

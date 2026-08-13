@@ -3,6 +3,10 @@ package ec.edu.puce.swipeshare.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -36,13 +40,17 @@ fun FeedScreen(viewModel: FeedViewModel) {
         viewModel.loadFeed()
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
 
         // DIÁLOGO 1: No tiene productos publicados
         if (showNoItemsDialog) {
             AlertDialog(
                 onDismissRequest = { viewModel.showNoItemsDialog.value = false },
-                title = { Text("¡Producto Requerido!") },
+                title = { Text("Producto Requerido") },
                 text = { Text("Para poder enviar un LIKE y proponer un intercambio, primero debes publicar al menos un producto en la sección 'Publicar'.") },
                 confirmButton = {
                     Button(onClick = { viewModel.showNoItemsDialog.value = false }) {
@@ -52,7 +60,7 @@ fun FeedScreen(viewModel: FeedViewModel) {
             )
         }
 
-        // DIÁLOGO 2: Selección de producto a ofrecer (se activa cuando tiene 2 o más productos)
+        // DIÁLOGO 2: Selección de producto a ofrecer
         if (showOfferSelectionDialog) {
             var selectedItem by remember { mutableStateOf(myItemsList.firstOrNull()) }
 
@@ -102,11 +110,11 @@ fun FeedScreen(viewModel: FeedViewModel) {
             )
         }
 
-        // DIÁLOGO 3: Notificación de Match
+        // DIÁLOGO 3: Notificación de Match (Sin Emojis)
         if (matchEvent) {
             AlertDialog(
                 onDismissRequest = { viewModel.matchEvent.value = false },
-                title = { Text("¡Es un Match! 🎉") },
+                title = { Text("¡Es un Match!") },
                 text = { Text("¡Genial! Alguien también quiere intercambiar contigo. Revisa la pestaña de Matches.") },
                 confirmButton = {
                     Button(onClick = { viewModel.matchEvent.value = false }) {
@@ -120,29 +128,68 @@ fun FeedScreen(viewModel: FeedViewModel) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         } else if (currentItem != null) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                ItemCard(item = currentItem!!)
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                // Contenedor centrado para la tarjeta del producto
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
                 ) {
+                    ItemCard(item = currentItem!!)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Botones redondos de acción
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Botón PASS redondo
                     Button(
                         onClick = { viewModel.swipe("PASS") },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+                        modifier = Modifier.size(64.dp),
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text("PASS")
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Pass",
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
 
+                    // Botón LIKE redondo
                     Button(
                         onClick = { viewModel.swipe("LIKE") },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.weight(1f).padding(start = 8.dp)
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.primary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+                        modifier = Modifier.size(64.dp),
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text("LIKE")
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = "Like",
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
                 }
             }
